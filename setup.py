@@ -1,5 +1,6 @@
 import os
 import sys
+import platform
 import subprocess
 import multiprocessing
 from setuptools import setup
@@ -24,10 +25,12 @@ class build(_build):
     @staticmethod
     def _configure():
         if sys.platform == 'win32':
-            if subprocess.call([sys.executable, os.path.join(build_dir,
-                                                             'scripts',
-                                                             'mk_make.py')],
-                               env=build_env, cwd=build_dir) != 0:
+            args = [sys.executable, os.path.join(build_dir, 'scripts',
+                                                 'mk_make.py')]
+            if platform.architecture()[0] == '64bit':
+                args += ['-x']
+
+            if subprocess.call(args, env=build_env, cwd=build_dir) != 0:
                 raise LibError("Unable to configure Z3.")
         else:   # linux and osx
             if subprocess.call([os.path.join(build_dir, 'configure')],
@@ -56,7 +59,7 @@ except OSError: pass
 
 setup(
     name='angr-only-z3-custom',
-    version='4.4.2.post1',
+    version='4.4.1.post4',
     description='pip installable distribution of The Z3 Theorem Prover, for use with angr. Please send all support requests to angr@lists.cs.ucsb.edu!',
     long_description='Z3 is a theorem prover from Microsoft Research. This version is slightly modified by the angr project to enable installation via pip, making it unsupportable by the Z3 project. Please direct all support requests to angr@lists.cs.ucsb.edu!',
     author="The Z3 Theorem Prover Project",
