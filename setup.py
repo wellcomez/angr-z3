@@ -8,6 +8,7 @@ from distutils.command.build import build as _build
 
 build_env = dict(os.environ)
 build_env['PYTHON'] = sys.executable
+build_env['CXXFLAGS'] = "-std=c++11"
 
 build_dir = os.path.abspath(os.path.dirname(__file__))
 
