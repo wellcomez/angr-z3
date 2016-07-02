@@ -6,6 +6,8 @@ import multiprocessing
 from setuptools import setup
 from distutils.errors import LibError
 from distutils.command.build import build as _build
+from setuptools.command.develop import develop as _develop
+
 
 build_env = dict(os.environ)
 build_env['PYTHON'] = sys.executable
@@ -20,38 +22,40 @@ elif sys.platform == 'win32':
 else:
     library_file = "libz3.so"
 
+def _configure_z3():
+    if sys.platform == 'win32':
+        args = [sys.executable, os.path.join(build_dir, 'scripts',
+                                             'mk_make.py')]
+        if platform.architecture()[0] == '64bit':
+            args += ['-x']
+
+        if subprocess.call(args, env=build_env, cwd=build_dir) != 0:
+            raise LibError("Unable to configure Z3.")
+    else:   # linux and osx
+        if subprocess.call([os.path.join(build_dir, 'configure')],
+                    env=build_env, cwd=build_dir) != 0:
+            raise LibError("Unable to configure Z3.")
+
+def _build_z3():
+    if sys.platform == 'win32':
+        if subprocess.call(['nmake'], env=build_env,
+                           cwd=os.path.join(build_dir, 'build')) != 0:
+            raise LibError("Unable to build Z3.")
+    else:   # linux and osx
+        if subprocess.call(['make', '-C', os.path.join(build_dir, 'build'),
+                            '-j', str(multiprocessing.cpu_count())],
+                    env=build_env, cwd=build_dir) != 0:
+            raise LibError("Unable to build Z3.")
 
 class build(_build):
-    @staticmethod
-    def _configure():
-        if sys.platform == 'win32':
-            args = [sys.executable, os.path.join(build_dir, 'scripts',
-                                                 'mk_make.py')]
-            if platform.architecture()[0] == '64bit':
-                args += ['-x']
-
-            if subprocess.call(args, env=build_env, cwd=build_dir) != 0:
-                raise LibError("Unable to configure Z3.")
-        else:   # linux and osx
-            if subprocess.call([os.path.join(build_dir, 'configure')],
-                        env=build_env, cwd=build_dir) != 0:
-                raise LibError("Unable to configure Z3.")
-
-    @staticmethod
-    def _build():
-        if sys.platform == 'win32':
-            if subprocess.call(['nmake'], env=build_env,
-                               cwd=os.path.join(build_dir, 'build')) != 0:
-                raise LibError("Unable to build Z3.")
-        else:   # linux and osx
-            if subprocess.call(['make', '-C', os.path.join(build_dir, 'build'),
-                                '-j', str(multiprocessing.cpu_count())],
-                        env=build_env, cwd=build_dir) != 0:
-                raise LibError("Unable to build Z3.")
-
     def run(self):
-        self.execute(self._configure, (), msg="Configuring Z3")
-        self.execute(self._build, (), msg="Building Z3")
+        self.execute(_configure_z3, (), msg="Configuring Z3")
+        self.execute(_build_z3, (), msg="Building Z3")
+
+class develop(_develop):
+    def run(self):
+        self.execute(_configure_z3, (), msg="Configuring Z3")
+        self.execute(_build_z3, (), msg="Building Z3")
 
 # the build directory needs to exist
 try: os.makedirs(os.path.join(build_dir, 'build'))
@@ -80,5 +84,5 @@ setup(
                      'src/api/c++/z3++.h') )),
     ],
     #scripts=[os.path.join(build_dir, 'build', 'z3')] if sys.version_info[0] == 2 else [],
-    cmdclass={'build': build},
+    cmdclass={'build': build, 'develop': develop},
 )
